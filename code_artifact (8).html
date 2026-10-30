@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多機能学習電卓 (分数・ひっ算・図形・標準)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Biz+UDPGothic:wght@400;700&family=M+PLUS+Rounded+1c:wght@400;500;700;800&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"M PLUS Rounded 1c"', 'sans-serif'],
+                        mono: ['"Roboto Mono"', 'monospace'],
+                        gothic: ['"Biz UDPGothic"', 'sans-serif']
+                    },
+                    colors: {
+                        math: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            accent: '#f59e0b',
+                            carry: '#ef4444',
+                            grid: '#cbd5e1'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 方眼紙風背景 */
+        .grid-paper {
+            background-color: #ffffff;
+            background-image: 
+                linear-gradient(to right, rgba(203, 213, 225, 0.4) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(203, 213, 225, 0.4) 1px, transparent 1px);
+            background-size: 28px 28px;
+        }
+
+        /* 筆算のセルスタイル */
+        .hissan-cell {
+            width: 28px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 1.25rem;
+            font-weight: 700;
+            position: relative;
+        }
+
+        .hissan-carry {
+            position: absolute;
+            top: -12px;
+            font-size: 0.75rem;
+            color: #ef4444;
+            font-weight: 800;
+        }
+
+        .fraction-line {
+            border-top: 2px solid #1e293b;
+        }
+
+        /* タブのアニメーション */
+        .tab-btn.active {
+            background-color: #0284c7;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen pb-12 flex flex-col items-center">
+
+    <!-- ヘッダー -->
+    <header class="w-full bg-white shadow-sm border-b border-slate-200 py-4 px-6 mb-6">
+        <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-math-500 text-white p-2.5 rounded-xl shadow">
+                    <i class="fa-solid fa-calculator text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-800">万能学習電卓</h1>
+                    <p class="text-xs text-slate-500">分数・ひっ算・図形（面積/体積）・標準計算</p>
+                </div>
+            </div>
+
+            <!-- モード切り替えタブ -->
+            <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 w-full md:w-auto overflow-x-auto">
+                <button onclick="switchTab('fraction')" id="tab-fraction" class="tab-btn active flex-1 md:flex-initial px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-divide"></i> 分数
+                </button>
+                <button onclick="switchTab('hissan')" id="tab-hissan" class="tab-btn flex-1 md:flex-initial px-4 py-2 rounded-lg text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 transition-all duration-200 flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-square-poll-vertical"></i> ひっ算
+                </button>
+                <button onclick="switchTab('geometry')" id="tab-geometry" class="tab-btn flex-1 md:flex-initial px-4 py-2 rounded-lg text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 transition-all duration-200 flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-shapes"></i> 図形(面積/体積)
+                </button>
+                <button onclick="switchTab('standard')" id="tab-standard" class="tab-btn flex-1 md:flex-initial px-4 py-2 rounded-lg text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 transition-all duration-200 flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-calculator"></i> 標準
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="w-full max-w-5xl px-4 flex-1">
+
+        <!-- ==================== 1. 分数電卓 ==================== -->
+        <section id="sec-fraction" class="space-y-6">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-math-500 rounded-full inline-block"></span>
+                    分数の計算（帯分数対応）
+                </h2>
+
+                <!-- 計算フォーム -->
+                <div class="flex flex-col lg:flex-row items-center justify-center gap-4 my-6 bg-slate-50 p-6 rounded-xl border border-slate-200">
+                    
+                    <!-- 分数 A -->
+                    <div class="flex items-center gap-2">
+                        <div class="flex flex-col items-center">
+                            <label class="text-xs text-slate-400 mb-1">整数</label>
+                            <input type="number" id="f1-int" placeholder="0" class="w-14 text-center p-2 rounded-lg border border-slate-300 font-bold focus:ring-2 focus:ring-math-500 focus:outline-none">
+                        </div>
+                        <div class="flex flex-col items-center gap-1">
+                            <input type="number" id="f1-num" placeholder="分子" class="w-20 text-center p-2 rounded-lg border border-slate-300 font-bold focus:ring-2 focus:ring-math-500 focus:outline-none">
+                            <div class="w-full h-0.5 bg-slate-800 my-0.5"></div>
+                            <input type="number" id="f1-den" placeholder="分母" class="w-20 text-center p-2 rounded-lg border border-slate-300 font-bold focus:ring-2 focus:ring-math-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- 演算子 -->
+                    <div class="my-2 lg:my-0">
+                        <select id="frac-op" class="bg-white font-bold text-xl p-3 rounded-xl border-2 border-math-500 text-math-700 focus:outline-none cursor-pointer shadow-sm">
+                            <option value="+">＋</option>
+                            <option value="-">－</option>
+                            <option value="*">×</option>
+                            <option value="/">÷</option>
+                        </select>
+                    </div>
+
+                    <!-- 分数 B -->
+                    <div class="flex items-center gap-2">
+                        <div class="flex flex-col items-center">
+                            <label class="text-xs text-slate-400 mb-1">整数</label>
+                            <input type="number" id="f2-int" placeholder="0" class="w-14 text-center p-2 rounded-lg border border-slate-300 font-bold focus:ring-2 focus:ring-math-500 focus:outline-none">
+                        </div>
+                        <div class="flex flex-col items-center gap-1">
+                            <input type="number" id="f2-num" placeholder="分子" class="w-20 text-center p-2 rounded-lg border border-slate-300 font-bold focus:ring-2 focus:ring-math-500 focus:outline-none">
+                            <div class="w-full h-0.5 bg-slate-800 my-0.5"></div>
+                            <input type="number" id="f2-den" placeholder="分母" class="w-20 text-center p-2 rounded-lg border border-slate-300 font-bold focus:ring-2 focus:ring-math-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- 計算ボタン -->
+                    <div class="mt-4 lg:mt-0 lg:ml-4 w-full lg:w-auto">
+                        <button onclick="calculateFraction()" class="w-full lg:w-auto bg-math-500 hover:bg-math-600 text-white font-bold px-6 py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-equals"></i> 計算する
+                        </button>
+                    </div>
+                </div>
+
+                <!-- クリア＆サンプル入力 -->
+                <div class="flex justify-end gap-2 text-sm">
+                    <button onclick="setFractionSample(1, 1, 2, '+', 2, 1, 3)" class="text-math-600 hover:underline">例: 1 1/2 + 2 1/3</button>
+                    <span class="text-slate-300">|</span>
+                    <button onclick="clearFraction()" class="text-slate-500 hover:text-slate-700">クリア</button>
+                </div>
+            </div>
+
+            <!-- 計算結果表示エリア -->
+            <div id="frac-result-card" class="hidden bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
+                <h3 class="text-md font-bold text-slate-700 border-b pb-2">計算結果</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl flex flex-col items-center justify-center">
+                        <span class="text-xs font-bold text-amber-700 mb-2">仮分数（最簡形）</span>
+                        <div id="res-simple-frac" class="flex items-center text-2xl font-bold text-slate-800"></div>
+                    </div>
+
+                    <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex flex-col items-center justify-center">
+                        <span class="text-xs font-bold text-emerald-700 mb-2">帯分数</span>
+                        <div id="res-mixed-frac" class="flex items-center text-2xl font-bold text-slate-800"></div>
+                    </div>
+
+                    <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl flex flex-col items-center justify-center">
+                        <span class="text-xs font-bold text-blue-700 mb-2">小数</span>
+                        <div id="res-decimal" class="text-2xl font-bold text-slate-800"></div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <h4 class="font-bold text-slate-700 text-sm mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-list-ol text-math-500"></i> 計算の解説（途中式）
+                    </h4>
+                    <ol id="frac-steps" class="list-decimal list-inside space-y-2 text-sm text-slate-700 leading-relaxed font-mono"></ol>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 2. ひっ算ビジュアル表示 ==================== -->
+        <section id="sec-hissan" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-math-500 rounded-full inline-block"></span>
+                    四則演算のひっ算（筆算ビジュアル）
+                </h2>
+
+                <div class="flex flex-wrap items-center justify-center gap-4 bg-slate-50 p-6 rounded-xl border border-slate-200">
+                    <div class="flex flex-col">
+                        <label class="text-xs font-bold text-slate-500 mb-1">1つ目の数</label>
+                        <input type="number" id="hissan-a" value="438" class="w-36 p-2 rounded-lg border border-slate-300 font-mono text-lg font-bold focus:ring-2 focus:ring-math-500 focus:outline-none">
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label class="text-xs font-bold text-slate-500 mb-1">計算</label>
+                        <select id="hissan-op" class="p-2.5 rounded-lg border border-slate-300 font-bold text-lg focus:ring-2 focus:ring-math-500 focus:outline-none">
+                            <option value="+">＋ (たし算)</option>
+                            <option value="-">－ (ひき算)</option>
+                            <option value="*">× (かけ算)</option>
+                            <option value="/">÷ (わり算)</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label class="text-xs font-bold text-slate-500 mb-1">2つ目の数</label>
+                        <input type="number" id="hissan-b" value="26" class="w-36 p-2 rounded-lg border border-slate-300 font-mono text-lg font-bold focus:ring-2 focus:ring-math-500 focus:outline-none">
+                    </div>
+
+                    <div class="self-end mt-2 sm:mt-0">
+                        <button onclick="renderHissan()" class="bg-math-500 hover:bg-math-600 text-white font-bold px-6 py-2.5 rounded-lg shadow transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-play"></i> ひっ算を作成
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2 mt-4 text-xs">
+                    <span class="text-slate-400 self-center">例:</span>
+                    <button onclick="setHissanExample(389, '+', 457)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600">繰り上がり足し算</button>
+                    <button onclick="setHissanExample(502, '-', 268)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600">繰り下がり引き算</button>
+                    <button onclick="setHissanExample(248, '*', 36)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600">2桁のかけ算</button>
+                    <button onclick="setHissanExample(875, '/', 25)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600">あまりなし割り算</button>
+                    <button onclick="setHissanExample(943, '/', 17)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600">あまりあり割り算</button>
+                </div>
+            </div>
+
+            <div id="hissan-board-card" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col items-center">
+                <div class="w-full flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="font-bold text-slate-700">筆算ノート</h3>
+                    <div class="flex items-center gap-4 text-xs">
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span> 繰り上がり</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span> 繰り下がり</span>
+                    </div>
+                </div>
+
+                <div class="grid-paper p-6 rounded-xl border border-slate-300 shadow-inner overflow-x-auto max-w-full min-w-[300px] flex justify-center">
+                    <div id="hissan-canvas" class="inline-block"></div>
+                </div>
+
+                <div id="hissan-explanation" class="w-full mt-6 bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm text-slate-700 leading-relaxed"></div>
+            </div>
+        </section>
+
+        <!-- ==================== 3. 図形計算（面積・体積） ==================== -->
+        <section id="sec-geometry" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-700 mb-4 flex items-center justify-between">
+                    <span class="flex items-center gap-2">
+                        <span class="w-2 h-6 bg-math-500 rounded-full inline-block"></span>
+                        図形の計算（面積・体積・表面積）
+                    </span>
+                    <!-- 円周率設定 & 単位選択 -->
+                    <div class="flex items-center gap-3 text-xs font-normal">
+                        <div class="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-lg border">
+                            <label for="geo-pi" class="text-slate-600 font-bold">円周率 π:</label>
+                            <select id="geo-pi" onchange="calculateGeometry()" class="bg-transparent font-bold text-math-700 focus:outline-none">
+                                <option value="3.14">3.14 (小・中等教育)</option>
+                                <option value="3.1415926535">3.14159... (精密値)</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-lg border">
+                            <label for="geo-unit" class="text-slate-600 font-bold">単位:</label>
+                            <select id="geo-unit" onchange="calculateGeometry()" class="bg-transparent font-bold text-slate-700 focus:outline-none">
+                                <option value="cm">cm</option>
+                                <option value="m">m</option>
+                                <option value="mm">mm</option>
+                            </select>
+                        </div>
+                    </div>
+                </h2>
+
+                <!-- 2D / 3D 切り替えタブ -->
+                <div class="flex border-b border-slate-200 mb-6">
+                    <button id="geo-tab-2d" onclick="switchGeoCategory('2d')" class="px-6 py-2.5 font-bold text-sm border-b-2 border-math-500 text-math-600 flex items-center gap-2">
+                        <i class="fa-solid fa-vector-square"></i> 2D 平面図形（面積）
+                    </button>
+                    <button id="geo-tab-3d" onclick="switchGeoCategory('3d')" class="px-6 py-2.5 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-cube"></i> 3D 立体図形（体積・表面積）
+                    </button>
+                </div>
+
+                <!-- 図形タイプ選択グリッド -->
+                <div id="geo-shape-selector" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 mb-6">
+                    <!-- JSで選択ボタンを動的生成 -->
+                </div>
+
+                <!-- 図形入力＆グラフィックエリア -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                    <!-- SVGグラフィック＆ガイド -->
+                    <div class="md:col-span-5 bg-white p-4 rounded-xl border border-slate-200 flex flex-col items-center justify-center min-h-[220px]">
+                        <div id="geo-svg-container" class="w-full flex items-center justify-center"></div>
+                        <span id="geo-shape-title" class="mt-3 font-bold text-slate-700 text-sm">正方形</span>
+                    </div>
+
+                    <!-- パラメータ入力フォーム -->
+                    <div class="md:col-span-7 flex flex-col justify-center space-y-4">
+                        <h3 class="font-bold text-slate-700 text-sm border-b pb-2 flex items-center justify-between">
+                            <span><i class="fa-solid fa-sliders text-math-500 mr-1"></i> パラメータ入力</span>
+                            <span id="geo-formula-badge" class="text-xs bg-math-100 text-math-700 px-2.5 py-0.5 rounded-full font-mono">公式: a²</span>
+                        </h3>
+                        
+                        <div id="geo-inputs-container" class="space-y-3">
+                            <!-- JSで動的生成 -->
+                        </div>
+
+                        <button onclick="calculateGeometry()" class="w-full bg-math-500 hover:bg-math-600 text-white font-bold py-2.5 rounded-xl shadow transition flex items-center justify-center gap-2 mt-2">
+                            <i class="fa-solid fa-calculator"></i> 図形を計算する
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 計算結果 & 解説 -->
+            <div id="geo-result-card" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+                <h3 class="text-md font-bold text-slate-700 border-b pb-2">計算結果</h3>
+                
+                <div id="geo-results-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- 面積/体積などのカード (JS注入) -->
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mt-4">
+                    <h4 class="font-bold text-slate-700 text-sm mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-square-root-variable text-math-500"></i> 計算式の展開
+                    </h4>
+                    <div id="geo-steps" class="text-sm text-slate-700 font-mono space-y-1"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 4. 標準電卓 ==================== -->
+        <section id="sec-standard" class="hidden">
+            <div class="max-w-md mx-auto bg-white rounded-3xl p-6 shadow-md border border-slate-200">
+                <div class="bg-slate-900 text-white rounded-2xl p-4 mb-6 text-right">
+                    <div id="std-history" class="text-xs text-slate-400 h-5 font-mono overflow-hidden"></div>
+                    <div id="std-display" class="text-4xl font-bold font-mono tracking-wider overflow-x-auto py-1">0</div>
+                </div>
+
+                <div class="grid grid-cols-4 gap-3">
+                    <button onclick="stdInput('C')" class="col-span-2 bg-red-100 hover:bg-red-200 text-red-600 font-bold p-4 rounded-2xl transition">AC</button>
+                    <button onclick="stdInput('DEL')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold p-4 rounded-2xl transition"><i class="fa-solid fa-backspace"></i></button>
+                    <button onclick="stdInput('/')" class="bg-math-100 hover:bg-math-200 text-math-700 font-bold p-4 rounded-2xl transition">÷</button>
+
+                    <button onclick="stdInput('7')" class="bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xl p-4 rounded-2xl transition">7</button>
+                    <button onclick="stdInput('8')" class="bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xl p-4 rounded-2xl transition">8</button>
+                    <button onclick="stdInput('9')" class="bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xl p-4 rounded-2xl transition">9</button>
+                    <button onclick="stdInput('*')" class="bg-math-100 hover:bg-math-200 text-math-700 font-bold p-4 rounded-2xl transition">×</button>
+
+                    <button onclick="stdInput('4')" class="bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xl p-4 rounded-2xl transition">4</button>
+                    <button onclick="stdInput('5')" class="bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xl p-4 rounded-2xl transition">5</button>
+                    <button onclick="stdInput('6')" class="bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xl p-4 rounded-2xl transition">6</button>
+                    <button onclick="stdInput('-')" class="bg-math-100 hover:bg-math-200 text-math-700 font-bold p-4 rounded-2xl transition">－</button>
+
+                    <button onclick="stdInput('1')" class="bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xl p-4 rounded-2xl transition">1</button>
+                    <button onclick="stdInput('2')" class="bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xl p-4 rounded-2xl transition">2</button>
+                    <button onclick="stdInput('3')" class="bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xl p-4 rounded-2xl transition">3</button>
+                    <button onclick="stdInput('+')" class="bg-math-100 hover:bg-math-200 text-math-700 font-bold p-4 rounded-2xl transition">＋</button>
+
+                    <button onclick="stdInput('0')" class="col-span-2 bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xl p-4 rounded-2xl transition">0</button>
+                    <button onclick="stdInput('.')" class="bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xl p-4 rounded-2xl transition">.</button>
+                    <button onclick="stdInput('=')" class="bg-math-500 hover:bg-math-600 text-white font-bold text-xl p-4 rounded-2xl shadow-md transition">=</button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- JavaScript ロジック -->
+    <script>
+        // --- タブ切り替え ---
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-math-500', 'text-white');
+                btn.classList.add('text-slate-600');
+            });
+            
+            ['fraction', 'hissan', 'geometry', 'standard'].forEach(sec => {
+                document.getElementById(`sec-${sec}`).classList.add('hidden');
+            });
+
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            document.getElementById(`sec-${tab}`).classList.remove('hidden');
+
+            if (tab === 'hissan') renderHissan();
+            if (tab === 'geometry') initGeometryUI();
+        }
+
+        // --- 数学ユーティリティ ---
+        function gcd(a, b) {
+            a = Math.abs(a); b = Math.abs(b);
+            while (b) { let t = b; b = a % b; a = t; }
+            return a;
+        }
+
+        function lcm(a, b) { return (a * b) / gcd(a, b); }
+
+
+        // ==========================================
+        // 1. 分数計算ロジック
+        // ==========================================
+        function setFractionSample(i1, n1, d1, op, i2, n2, d2) {
+            document.getElementById('f1-int').value = i1;
+            document.getElementById('f1-num').value = n1;
+            document.getElementById('f1-den').value = d1;
+            document.getElementById('frac-op').value = op;
+            document.getElementById('f2-int').value = i2;
+            document.getElementById('f2-num').value = n2;
+            document.getElementById('f2-den').value = d2;
+            calculateFraction();
+        }
+
+        function clearFraction() {
+            ['f1-int','f1-num','f1-den','f2-int','f2-num','f2-den'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('frac-result-card').classList.add('hidden');
+        }
+
+        function calculateFraction() {
+            const i1 = parseInt(document.getElementById('f1-int').value || 0);
+            const n1 = parseInt(document.getElementById('f1-num').value || 0);
+            const d1 = parseInt(document.getElementById('f1-den').value || 1);
+
+            const i2 = parseInt(document.getElementById('f2-int').value || 0);
+            const n2 = parseInt(document.getElementById('f2-num').value || 0);
+            const d2 = parseInt(document.getElementById('f2-den').value || 1);
+
+            const op = document.getElementById('frac-op').value;
+
+            if (d1 === 0 || d2 === 0) {
+                alert('分母に0を入力することはできません。');
+                return;
+            }
+
+            let num1 = (i1 >= 0) ? (i1 * d1 + n1) : (i1 * d1 - n1);
+            let den1 = d1;
+            let num2 = (i2 >= 0) ? (i2 * d2 + n2) : (i2 * d2 - n2);
+            let den2 = d2;
+
+            let steps = [];
+            steps.push(`入力された分数を仮分数にします： <b>${num1}/${den1}</b> ${getOpSymbol(op)} <b>${num2}/${den2}</b>`);
+
+            let resNum = 0, resDen = 1;
+
+            if (op === '+' || op === '-') {
+                const commonDen = lcm(den1, den2);
+                const adjNum1 = num1 * (commonDen / den1);
+                const adjNum2 = num2 * (commonDen / den2);
+
+                steps.push(`通分します（最小公倍数 ${commonDen}）： <b>${adjNum1}/${commonDen}</b> ${getOpSymbol(op)} <b>${adjNum2}/${commonDen}</b>`);
+                resNum = (op === '+') ? (adjNum1 + adjNum2) : (adjNum1 - adjNum2);
+                resDen = commonDen;
+                steps.push(`分子同士を計算します： <b>${resNum}/${resDen}</b>`);
+
+            } else if (op === '*') {
+                resNum = num1 * num2;
+                resDen = den1 * den2;
+                steps.push(`分子同士、分母同士をかけます： <b>(${num1} × ${num2}) / (${den1} × ${den2}) = ${resNum}/${resDen}</b>`);
+
+            } else if (op === '/') {
+                if (num2 === 0) {
+                    alert('0で割ることはできません。');
+                    return;
+                }
+                resNum = num1 * den2;
+                resDen = den1 * num2;
+                steps.push(`割る数の分子と分母を逆数にしてかけます： <b>(${num1}/${den1}) × (${den2}/${num2}) = ${resNum}/${resDen}</b>`);
+            }
+
+            const commonGcd = gcd(resNum, resDen);
+            let simpleNum = resNum / commonGcd;
+            let simpleDen = resDen / commonGcd;
+
+            if (commonGcd > 1) {
+                steps.push(`分子と分母を ${commonGcd} で約分します： <b>${simpleNum}/${simpleDen}</b>`);
+            } else {
+                steps.push(`これ以上約分できません。`);
+            }
+
+            document.getElementById('frac-result-card').classList.remove('hidden');
+            renderFracHTML('res-simple-frac', simpleNum, simpleDen);
+
+            const mixedInt = Math.floor(Math.abs(simpleNum) / simpleDen) * (simpleNum < 0 ? -1 : 1);
+            const mixedNum = Math.abs(simpleNum) % simpleDen;
+
+            if (Math.abs(simpleNum) >= simpleDen && simpleDen !== 1 && mixedNum !== 0) {
+                renderMixedFracHTML('res-mixed-frac', mixedInt, mixedNum, simpleDen);
+            } else if (simpleDen === 1) {
+                document.getElementById('res-mixed-frac').innerHTML = `<span class="text-3xl font-bold">${simpleNum}</span>`;
+            } else {
+                renderFracHTML('res-mixed-frac', simpleNum, simpleDen);
+            }
+
+            const decVal = (simpleNum / simpleDen);
+            document.getElementById('res-decimal').textContent = Number.isInteger(decVal) ? decVal : decVal.toFixed(4).replace(/\.?0+$/, '');
+
+            const stepsList = document.getElementById('frac-steps');
+            stepsList.innerHTML = '';
+            steps.forEach(st => {
+                const li = document.createElement('li');
+                li.innerHTML = st;
+                stepsList.appendChild(li);
+            });
+        }
+
+        function getOpSymbol(op) {
+            return { '+': '＋', '-': '－', '*': '×', '/': '÷' }[op] || op;
+        }
+
+        function renderFracHTML(elementId, num, den) {
+            const el = document.getElementById(elementId);
+            if (den === 1) {
+                el.innerHTML = `<span class="text-3xl font-bold">${num}</span>`;
+            } else {
+                el.innerHTML = `
+                    <div class="inline-flex flex-col items-center">
+                        <span>${num}</span>
+                        <div class="w-full h-0.5 bg-slate-800 my-0.5"></div>
+                        <span>${den}</span>
+                    </div>
+                `;
+            }
+        }
+
+        function renderMixedFracHTML(elementId, integer, num, den) {
+            const el = document.getElementById(elementId);
+            el.innerHTML = `
+                <span class="text-3xl font-bold mr-1.5">${integer}</span>
+                <div class="inline-flex flex-col items-center">
+                    <span>${num}</span>
+                    <div class="w-full h-0.5 bg-slate-800 my-0.5"></div>
+                    <span>${den}</span>
+                </div>
+            `;
+        }
+
+
+        // ==========================================
+        // 2. ひっ算描画ロジック
+        // ==========================================
+        function setHissanExample(a, op, b) {
+            document.getElementById('hissan-a').value = a;
+            document.getElementById('hissan-op').value = op;
+            document.getElementById('hissan-b').value = b;
+            renderHissan();
+        }
+
+        function renderHissan() {
+            const numA = parseInt(document.getElementById('hissan-a').value || 0);
+            const numB = parseInt(document.getElementById('hissan-b').value || 0);
+            const op = document.getElementById('hissan-op').value;
+
+            const canvas = document.getElementById('hissan-canvas');
+            const exp = document.getElementById('hissan-explanation');
+            canvas.innerHTML = '';
+
+            if (op === '+') renderAdditionHissan(numA, numB, canvas, exp);
+            else if (op === '-') renderSubtractionHissan(numA, numB, canvas, exp);
+            else if (op === '*') renderMultiplicationHissan(numA, numB, canvas, exp);
+            else if (op === '/') renderDivisionHissan(numA, numB, canvas, exp);
+        }
+
+        function renderAdditionHissan(a, b, canvas, exp) {
+            const strA = a.toString(), strB = b.toString(), sum = (a + b).toString();
+            const maxLen = Math.max(strA.length, strB.length, sum.length) + 1;
+
+            let carries = new Array(maxLen).fill('');
+            let currCarry = 0, aIdx = strA.length - 1, bIdx = strB.length - 1;
+
+            for (let i = 0; i < maxLen; i++) {
+                let digitA = aIdx >= 0 ? parseInt(strA[aIdx]) : 0;
+                let digitB = bIdx >= 0 ? parseInt(strB[bIdx]) : 0;
+                let s = digitA + digitB + currCarry;
+                if (s >= 10) {
+                    currCarry = Math.floor(s / 10);
+                    carries[maxLen - 2 - i] = currCarry;
+                } else {
+                    currCarry = 0;
+                }
+                aIdx--; bIdx--;
+            }
+
+            let html = `<div class="grid gap-0 font-mono" style="grid-template-columns: repeat(${maxLen}, 28px);">`;
+            for (let i = 0; i < maxLen; i++) html += `<div class="hissan-cell"><span class="hissan-carry">${carries[i] || ''}</span></div>`;
+            
+            const padA = maxLen - strA.length;
+            for (let i = 0; i < maxLen; i++) html += `<div class="hissan-cell">${i >= padA ? strA[i - padA] : ''}</div>`;
+
+            const padB = maxLen - strB.length;
+            for (let i = 0; i < maxLen; i++) html += `<div class="hissan-cell">${i === 0 ? '＋' : (i >= padB ? strB[i - padB] : '')}</div>`;
+
+            html += `<div class="col-span-${maxLen} fraction-line my-1"></div>`;
+
+            const padSum = maxLen - sum.length;
+            for (let i = 0; i < maxLen; i++) html += `<div class="hissan-cell text-math-600">${i >= padSum ? sum[i - padSum] : ''}</div>`;
+
+            html += `</div>`;
+            canvas.innerHTML = html;
+            exp.innerHTML = `<p class="font-bold text-slate-800 mb-1">【たし算の手順】</p><ul class="list-disc list-inside space-y-1"><li>一の位から順に足します。</li><li>10以上になったら次の位へ繰り上げます（赤い数字）。</li></ul>`;
+        }
+
+        function renderSubtractionHissan(a, b, canvas, exp) {
+            if (a < b) {
+                canvas.innerHTML = `<div class="text-red-500 font-bold p-4">引き算の筆算は「引かれる数 ≧ 引く数」で入力してください。</div>`;
+                exp.innerHTML = '';
+                return;
+            }
+
+            const strA = a.toString(), strB = b.toString(), diff = (a - b).toString();
+            const maxLen = Math.max(strA.length, strB.length) + 1;
+
+            let borrows = new Array(strA.length).fill(null);
+            let digitsA = strA.split('').map(Number);
+
+            for (let i = strA.length - 1; i >= 0; i--) {
+                let bDigit = (i - (strA.length - strB.length) >= 0) ? parseInt(strB[i - (strA.length - strB.length)]) : 0;
+                if (digitsA[i] < bDigit) {
+                    let j = i - 1;
+                    while (j >= 0 && digitsA[j] === 0) {
+                        digitsA[j] = 9; borrows[j] = 9; j--;
+                    }
+                    digitsA[j] -= 1; borrows[j] = digitsA[j];
+                    digitsA[i] += 10; borrows[i] = digitsA[i];
+                }
+            }
+
+            let html = `<div class="grid gap-0 font-mono" style="grid-template-columns: repeat(${maxLen}, 28px);">`;
+            const padBorrow = maxLen - strA.length;
+            for (let i = 0; i < maxLen; i++) {
+                html += `<div class="hissan-cell">${(i >= padBorrow && borrows[i - padBorrow] !== null) ? `<span class="text-xs text-blue-600 font-bold">${borrows[i - padBorrow]}</span>` : ''}</div>`;
+            }
+
+            const padA = maxLen - strA.length;
+            for (let i = 0; i < maxLen; i++) {
+                const isBorrowed = i >= padA && borrows[i - padA] !== null;
+                html += `<div class="hissan-cell ${isBorrowed ? 'text-slate-400 line-through' : ''}">${i >= padA ? strA[i - padA] : ''}</div>`;
+            }
+
+            const padB = maxLen - strB.length;
+            for (let i = 0; i < maxLen; i++) html += `<div class="hissan-cell">${i === 0 ? '－' : (i >= padB ? strB[i - padB] : '')}</div>`;
+
+            html += `<div class="col-span-${maxLen} fraction-line my-1"></div>`;
+
+            const padDiff = maxLen - diff.length;
+            for (let i = 0; i < maxLen; i++) html += `<div class="hissan-cell text-math-600">${i >= padDiff ? diff[i - padDiff] : ''}</div>`;
+
+            html += `</div>`;
+            canvas.innerHTML = html;
+            exp.innerHTML = `<p class="font-bold text-slate-800 mb-1">【ひき算の手順】</p><ul class="list-disc list-inside space-y-1"><li>一の位から順に引きます。</li><li>引けない場合は上の位から1借りて計算します（青い数字）。</li></ul>`;
+        }
+
+        function renderMultiplicationHissan(a, b, canvas, exp) {
+            const strA = a.toString(), strB = b.toString(), prod = (a * b).toString();
+            const maxLen = Math.max(strA.length + strB.length, prod.length) + 1;
+
+            let html = `<div class="grid gap-0 font-mono" style="grid-template-columns: repeat(${maxLen}, 28px);">`;
+            const padA = maxLen - strA.length;
+            for (let i = 0; i < maxLen; i++) html += `<div class="hissan-cell">${i >= padA ? strA[i - padA] : ''}</div>`;
+
+            const padB = maxLen - strB.length;
+            for (let i = 0; i < maxLen; i++) html += `<div class="hissan-cell">${i === 0 ? '×' : (i >= padB ? strB[i - padB] : '')}</div>`;
+
+            html += `<div class="col-span-${maxLen} fraction-line my-1"></div>`;
+
+            if (strB.length > 1) {
+                for (let i = 0; i < strB.length; i++) {
+                    const bDigit = parseInt(strB[strB.length - 1 - i]);
+                    const partialProd = (a * bDigit).toString();
+                    const padP = maxLen - partialProd.length - i;
+
+                    for (let j = 0; j < maxLen; j++) {
+                        html += `<div class="hissan-cell text-slate-600">${(j >= padP && j < padP + partialProd.length) ? partialProd[j - padP] : ''}</div>`;
+                    }
+                }
+                html += `<div class="col-span-${maxLen} fraction-line my-1"></div>`;
+            }
+
+            const padProd = maxLen - prod.length;
+            for (let i = 0; i < maxLen; i++) html += `<div class="hissan-cell text-math-600">${i >= padProd ? prod[i - padProd] : ''}</div>`;
+
+            html += `</div>`;
+            canvas.innerHTML = html;
+            exp.innerHTML = `<p class="font-bold text-slate-800 mb-1">【かけ算の手順】</p><ul class="list-disc list-inside space-y-1"><li>下の数の各桁を上の数全体にかけます。</li><li>最後に全ての途中の積を足します。</li></ul>`;
+        }
+
+        function renderDivisionHissan(a, b, canvas, exp) {
+            if (b === 0) {
+                canvas.innerHTML = `<div class="text-red-500 font-bold p-4">0で割ることはできません。</div>`;
+                exp.innerHTML = '';
+                return;
+            }
+
+            const quotient = Math.floor(a / b).toString();
+            const remainder = a % b;
+            const strA = a.toString(), strB = b.toString();
+
+            let steps = [];
+            let current = 0, qStr = '';
+
+            for (let i = 0; i < strA.length; i++) {
+                current = current * 10 + parseInt(strA[i]);
+                if (current >= b || qStr.length > 0) {
+                    let qDigit = Math.floor(current / b);
+                    let mult = qDigit * b;
+                    let sub = current - mult;
+                    steps.push({ digitIdx: i, qDigit: qDigit, current: current, mult: mult, sub: sub });
+                    qStr += qDigit.toString();
+                    current = sub;
+                }
+            }
+
+            const startCol = strB.length + 1;
+            const totalCols = startCol + strA.length;
+
+            let html = `<div class="grid gap-0 font-mono" style="grid-template-columns: repeat(${totalCols}, 28px);">`;
+
+            for (let i = 0; i < totalCols; i++) {
+                let char = '';
+                if (i >= startCol) {
+                    let qObj = steps.find(s => s.digitIdx === (i - startCol));
+                    if (qObj) char = qObj.qDigit;
+                }
+                html += `<div class="hissan-cell text-math-600 font-bold">${char}</div>`;
+            }
+
+            for (let i = 0; i < totalCols; i++) {
+                if (i < strB.length) {
+                    html += `<div class="hissan-cell">${strB[i]}</div>`;
+                } else if (i === strB.length) {
+                    html += `<div class="hissan-cell border-r-2 border-t-2 border-slate-800 rounded-tl"></div>`;
+                } else {
+                    html += `<div class="hissan-cell border-t-2 border-slate-800">${strA[i - startCol]}</div>`;
+                }
+            }
+
+            steps.forEach((st, idx) => {
+                const endCol = startCol + st.digitIdx;
+                const multStr = st.mult.toString();
+                const multStartCol = endCol - multStr.length + 1;
+
+                for (let i = 0; i < totalCols; i++) {
+                    html += `<div class="hissan-cell text-slate-500">${(i >= multStartCol && i <= endCol) ? multStr[i - multStartCol] : ''}</div>`;
+                }
+
+                const lineStart = multStartCol;
+                const lineSpan = endCol - lineStart + 1;
+                html += `<div class="col-start-${lineStart + 1} col-span-${lineSpan} fraction-line my-0.5"></div>`;
+
+                let subStr = st.sub.toString();
+                if (idx < steps.length - 1) subStr += strA[st.digitIdx + 1];
+
+                const subEndCol = idx < steps.length - 1 ? endCol + 1 : endCol;
+                const subStartCol = subEndCol - subStr.length + 1;
+
+                for (let i = 0; i < totalCols; i++) {
+                    const isFinal = (idx === steps.length - 1);
+                    html += `<div class="hissan-cell ${isFinal ? 'text-amber-600 font-bold' : ''}">${(i >= subStartCol && i <= subEndCol) ? subStr[i - subStartCol] : ''}</div>`;
+                }
+            });
+
+            html += `</div>`;
+            canvas.innerHTML = html;
+            exp.innerHTML = `<p class="font-bold text-slate-800 mb-1">【わり算の手順】</p><div class="flex flex-wrap gap-4 text-sm mt-2"><span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-lg font-bold">商: ${quotient || 0}</span><span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-lg font-bold">あまり: ${remainder}</span></div>`;
+        }
+
+
+        // ==========================================
+        // 3. 図形計算（面積・体積）ロジック
+        // ==========================================
+        let currentGeoCategory = '2d';
+        let currentGeoShape = 'square';
+
+        const GEO_DATA = {
+            '2d': {
+                square: { name: '正方形', formulaBadge: 'a²', inputs: [{ id: 'a', label: '一辺の長さ (a)', default: 5 }], drawSVG: drawSquareSVG, calc: calcSquare },
+                rectangle: { name: '長方形', formulaBadge: '縦 × 横', inputs: [{ id: 'h', label: '縦の長さ (h)', default: 4 }, { id: 'w', label: '横の長さ (w)', default: 6 }], drawSVG: drawRectangleSVG, calc: calcRectangle },
+                triangle: { name: '三角形', formulaBadge: '底辺 × 高さ ÷ 2', inputs: [{ id: 'b', label: '底辺 (b)', default: 6 }, { id: 'h', label: '高さ (h)', default: 4 }], drawSVG: drawTriangleSVG, calc: calcTriangle },
+                parallelogram: { name: '平行四辺形', formulaBadge: '底辺 × 高さ', inputs: [{ id: 'b', label: '底辺 (b)', default: 6 }, { id: 'h', label: '高さ (h)', default: 4 }], drawSVG: drawParallelogramSVG, calc: calcParallelogram },
+                trapezoid: { name: '台形', formulaBadge: '(上底 + 下底) × 高さ ÷ 2', inputs: [{ id: 'top', label: '上底 (a)', default: 4 }, { id: 'bottom', label: '下底 (b)', default: 7 }, { id: 'h', label: '高さ (h)', default: 5 }], drawSVG: drawTrapezoidSVG, calc: calcTrapezoid },
+                circle: { name: '円', formulaBadge: 'π × r²', inputs: [{ id: 'r', label: '半径 (r)', default: 5 }], drawSVG: drawCircleSVG, calc: calcCircle },
+                sector: { name: '扇形', formulaBadge: 'π × r² × (θ/360)', inputs: [{ id: 'r', label: '半径 (r)', default: 6 }, { id: 'deg', label: '中心角 (θ°)', default: 60 }], drawSVG: drawSectorSVG, calc: calcSector }
+            },
+            '3d': {
+                cube: { name: '立方体', formulaBadge: 'a³', inputs: [{ id: 'a', label: '一辺の長さ (a)', default: 4 }], drawSVG: drawCubeSVG, calc: calcCube },
+                cuboid: { name: '直方体', formulaBadge: '縦 × 横 × 高さ', inputs: [{ id: 'w', label: '横 (w)', default: 5 }, { id: 'd', label: '奥行き (d)', default: 4 }, { id: 'h', label: '高さ (h)', default: 3 }], drawSVG: drawCuboidSVG, calc: calcCuboid },
+                cylinder: { name: '円柱', formulaBadge: 'π × r² × h', inputs: [{ id: 'r', label: '底面の半径 (r)', default: 3 }, { id: 'h', label: '高さ (h)', default: 6 }], drawSVG: drawCylinderSVG, calc: calcCylinder },
+                prism: { name: '三角柱', formulaBadge: '底面積 × 高さ', inputs: [{ id: 'b', label: '底面三角形の底辺 (b)', default: 4 }, { id: 'th', label: '底面三角形の高さ (th)', default: 3 }, { id: 'h', label: '柱の高さ (h)', default: 6 }], drawSVG: drawPrismSVG, calc: calcPrism },
+                cone: { name: '円錐', formulaBadge: '1/3 × π × r² × h', inputs: [{ id: 'r', label: '底面の半径 (r)', default: 3 }, { id: 'h', label: '高さ (h)', default: 6 }], drawSVG: drawConeSVG, calc: calcCone },
+                pyramid: { name: '四角錐', formulaBadge: '1/3 × 底面積 × 高さ', inputs: [{ id: 'w', label: '底面横の長さ (w)', default: 4 }, { id: 'd', label: '底面縦の長さ (d)', default: 4 }, { id: 'h', label: '高さ (h)', default: 6 }], drawSVG: drawPyramidSVG, calc: calcPyramid },
+                sphere: { name: '球', formulaBadge: '4/3 × π × r³', inputs: [{ id: 'r', label: '半径 (r)', default: 3 }], drawSVG: drawSphereSVG, calc: calcSphere }
+            }
+        };
+
+        function switchGeoCategory(cat) {
+            currentGeoCategory = cat;
+            document.getElementById('geo-tab-2d').className = cat === '2d' ? 'px-6 py-2.5 font-bold text-sm border-b-2 border-math-500 text-math-600 flex items-center gap-2' : 'px-6 py-2.5 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2';
+            document.getElementById('geo-tab-3d').className = cat === '3d' ? 'px-6 py-2.5 font-bold text-sm border-b-2 border-math-500 text-math-600 flex items-center gap-2' : 'px-6 py-2.5 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2';
+
+            currentGeoShape = Object.keys(GEO_DATA[cat])[0];
+            initGeometryUI();
+        }
+
+        function initGeometryUI() {
+            const selector = document.getElementById('geo-shape-selector');
+            selector.innerHTML = '';
+
+            Object.keys(GEO_DATA[currentGeoCategory]).forEach(shapeKey => {
+                const shape = GEO_DATA[currentGeoCategory][shapeKey];
+                const btn = document.createElement('button');
+                const isSelected = shapeKey === currentGeoShape;
+                btn.className = `p-2.5 rounded-xl font-bold text-xs sm:text-sm border transition flex flex-col items-center justify-center gap-1 ${isSelected ? 'bg-math-500 text-white border-math-500 shadow-sm' : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200'}`;
+                btn.onclick = () => {
+                    currentGeoShape = shapeKey;
+                    initGeometryUI();
+                };
+                btn.innerHTML = `<span>${shape.name}</span>`;
+                selector.appendChild(btn);
+            });
+
+            loadGeoShapeForm();
+        }
+
+        function loadGeoShapeForm() {
+            const shape = GEO_DATA[currentGeoCategory][currentGeoShape];
+            document.getElementById('geo-shape-title').textContent = `${shape.name} (${currentGeoCategory.toUpperCase()})`;
+            document.getElementById('geo-formula-badge').textContent = `公式: ${shape.formulaBadge}`;
+
+            const container = document.getElementById('geo-inputs-container');
+            container.innerHTML = '';
+
+            shape.inputs.forEach(inp => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between gap-2';
+                div.innerHTML = `
+                    <label for="input-${inp.id}" class="text-xs font-bold text-slate-600">${inp.label}</label>
+                    <input type="number" id="input-${inp.id}" value="${inp.default}" step="any" oninput="calculateGeometry()" class="w-28 p-2 text-right font-bold rounded-lg border border-slate-300 focus:ring-2 focus:ring-math-500 focus:outline-none">
+                `;
+                container.appendChild(div);
+            });
+
+            calculateGeometry();
+        }
+
+        function getGeoInputValue(id) {
+            return parseFloat(document.getElementById(`input-${id}`)?.value || 0);
+        }
+
+        function calculateGeometry() {
+            const shape = GEO_DATA[currentGeoCategory][currentGeoShape];
+            const pi = parseFloat(document.getElementById('geo-pi').value);
+            const unit = document.getElementById('geo-unit').value;
+
+            // Draw SVG
+            shape.drawSVG(document.getElementById('geo-svg-container'));
+
+            // Calc
+            const res = shape.calc(pi, unit);
+
+            // Render Results
+            const grid = document.getElementById('geo-results-grid');
+            grid.innerHTML = '';
+
+            res.cards.forEach(c => {
+                const div = document.createElement('div');
+                div.className = `${c.bg || 'bg-math-50'} border ${c.border || 'border-math-200'} p-4 rounded-xl flex flex-col items-center justify-center`;
+                div.innerHTML = `
+                    <span class="text-xs font-bold ${c.textColor || 'text-math-700'} mb-1">${c.label}</span>
+                    <span class="text-2xl font-bold text-slate-800">${c.value} <span class="text-sm font-normal text-slate-500">${c.unit}</span></span>
+                `;
+                grid.appendChild(div);
+            });
+
+            const stepsDiv = document.getElementById('geo-steps');
+            stepsDiv.innerHTML = res.steps.map(s => `<p>${s}</p>`).join('');
+        }
+
+        // --- SVG 描画 & 計算関数群 ---
+        function createSVG(content) {
+            return `<svg width="160" height="140" viewBox="0 0 160 140" xmlns="http://www.w3.org/2000/svg" class="text-math-500">${content}</svg>`;
+        }
+
+        // 2D SVG / Calc
+        function drawSquareSVG(el) { el.innerHTML = createSVG(`<rect x="35" y="25" width="90" height="90" fill="#e0f2fe" stroke="#0284c7" stroke-width="3" rx="4"/><text x="80" y="130" text-anchor="middle" font-size="12" fill="#0369a1" font-weight="bold">a</text>`); }
+        function calcSquare(pi, u) {
+            const a = getGeoInputValue('a');
+            const area = a * a;
+            return { cards: [{ label: '面積 (S)', value: area.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}²` }], steps: [`面積 S = a × a = ${a} × ${a} = ${area} ${u}²`] };
+        }
+
+        function drawRectangleSVG(el) { el.innerHTML = createSVG(`<rect x="25" y="35" width="110" height="70" fill="#e0f2fe" stroke="#0284c7" stroke-width="3" rx="4"/><text x="80" y="122" text-anchor="middle" font-size="12" fill="#0369a1" font-weight="bold">w</text><text x="15" y="75" text-anchor="middle" font-size="12" fill="#0369a1" font-weight="bold">h</text>`); }
+        function calcRectangle(pi, u) {
+            const h = getGeoInputValue('h'), w = getGeoInputValue('w');
+            const area = h * w;
+            return { cards: [{ label: '面積 (S)', value: area.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}²` }], steps: [`面積 S = h × w = ${h} × ${w} = ${area} ${u}²`] };
+        }
+
+        function drawTriangleSVG(el) { el.innerHTML = createSVG(`<polygon points="80,25 25,115 135,115" fill="#e0f2fe" stroke="#0284c7" stroke-width="3"/><line x1="80" y1="25" x2="80" y2="115" stroke="#ef4444" stroke-width="2" stroke-dasharray="4"/><text x="80" y="132" text-anchor="middle" font-size="12" fill="#0369a1" font-weight="bold">b</text><text x="90" y="75" text-anchor="start" font-size="11" fill="#ef4444" font-weight="bold">h</text>`); }
+        function calcTriangle(pi, u) {
+            const b = getGeoInputValue('b'), h = getGeoInputValue('h');
+            const area = (b * h) / 2;
+            return { cards: [{ label: '面積 (S)', value: area.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}²` }], steps: [`面積 S = b × h ÷ 2 = ${b} × ${h} ÷ 2 = ${area} ${u}²`] };
+        }
+
+        function drawParallelogramSVG(el) { el.innerHTML = createSVG(`<polygon points="45,35 145,35 115,105 15,105" fill="#e0f2fe" stroke="#0284c7" stroke-width="3"/><line x1="45" y1="35" x2="45" y2="105" stroke="#ef4444" stroke-width="2" stroke-dasharray="4"/><text x="65" y="122" text-anchor="middle" font-size="12" fill="#0369a1" font-weight="bold">b</text><text x="35" y="75" text-anchor="end" font-size="11" fill="#ef4444" font-weight="bold">h</text>`); }
+        function calcParallelogram(pi, u) {
+            const b = getGeoInputValue('b'), h = getGeoInputValue('h');
+            const area = b * h;
+            return { cards: [{ label: '面積 (S)', value: area.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}²` }], steps: [`面積 S = b × h = ${b} × ${h} = ${area} ${u}²`] };
+        }
+
+        function drawTrapezoidSVG(el) { el.innerHTML = createSVG(`<polygon points="45,35 115,35 140,105 20,105" fill="#e0f2fe" stroke="#0284c7" stroke-width="3"/><line x1="45" y1="35" x2="45" y2="105" stroke="#ef4444" stroke-width="2" stroke-dasharray="4"/><text x="80" y="25" text-anchor="middle" font-size="11" fill="#0369a1" font-weight="bold">a (上底)</text><text x="80" y="122" text-anchor="middle" font-size="11" fill="#0369a1" font-weight="bold">b (下底)</text>`); }
+        function calcTrapezoid(pi, u) {
+            const top = getGeoInputValue('top'), bottom = getGeoInputValue('bottom'), h = getGeoInputValue('h');
+            const area = ((top + bottom) * h) / 2;
+            return { cards: [{ label: '面積 (S)', value: area.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}²` }], steps: [`面積 S = (上底 + 下底) × h ÷ 2 = (${top} + ${bottom}) × ${h} ÷ 2 = ${area} ${u}²`] };
+        }
+
+        function drawCircleSVG(el) { el.innerHTML = createSVG(`<circle cx="80" cy="70" r="45" fill="#e0f2fe" stroke="#0284c7" stroke-width="3"/><line x1="80" y1="70" x2="125" y2="70" stroke="#ef4444" stroke-width="2"/><circle cx="80" cy="70" r="3" fill="#0369a1"/><text x="100" y="62" text-anchor="middle" font-size="12" fill="#ef4444" font-weight="bold">r</text>`); }
+        function calcCircle(pi, u) {
+            const r = getGeoInputValue('r');
+            const area = pi * r * r;
+            const len = 2 * pi * r;
+            return { cards: [{ label: '面積 (S)', value: area.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}²` }, { label: '円周 (L)', value: len.toFixed(2).replace(/\.?0+$/, ''), unit: u, bg: 'bg-emerald-50', border: 'border-emerald-200', textColor: 'text-emerald-700' }], steps: [`面積 S = π × r² = ${pi} × ${r}² = ${area.toFixed(4)} ${u}²`, `円周 L = 2 × π × r = 2 × ${pi} × ${r} = ${len.toFixed(4)} ${u}`] };
+        }
+
+        function drawSectorSVG(el) { el.innerHTML = createSVG(`<path d="M80,70 L125,70 A45,45 0 0,0 102.5,31 Z" fill="#e0f2fe" stroke="#0284c7" stroke-width="3"/><circle cx="80" cy="70" r="3" fill="#0369a1"/><text x="100" y="85" text-anchor="middle" font-size="11" fill="#ef4444" font-weight="bold">r</text><text x="92" y="60" text-anchor="middle" font-size="10" fill="#0369a1">θ°</text>`); }
+        function calcSector(pi, u) {
+            const r = getGeoInputValue('r'), deg = getGeoInputValue('deg');
+            const area = pi * r * r * (deg / 360);
+            const arc = 2 * pi * r * (deg / 360);
+            return { cards: [{ label: '面積 (S)', value: area.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}²` }, { label: '弧の長さ (l)', value: arc.toFixed(2).replace(/\.?0+$/, ''), unit: u, bg: 'bg-emerald-50', border: 'border-emerald-200', textColor: 'text-emerald-700' }], steps: [`面積 S = π × r² × (θ/360) = ${pi} × ${r}² × (${deg}/360) = ${area.toFixed(4)} ${u}²`, `弧の長さ l = 2 × π × r × (θ/360) = ${arc.toFixed(4)} ${u}`] };
+        }
+
+        // 3D SVG / Calc
+        function drawCubeSVG(el) { el.innerHTML = createSVG(`<rect x="35" y="45" width="60" height="60" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/><polygon points="35,45 60,25 120,25 95,45" fill="#bae6fd" stroke="#0284c7" stroke-width="2"/><polygon points="95,45 120,25 120,85 95,105" fill="#7dd3fc" stroke="#0284c7" stroke-width="2"/>`); }
+        function calcCube(pi, u) {
+            const a = getGeoInputValue('a');
+            const vol = a * a * a;
+            const sa = 6 * a * a;
+            return { cards: [{ label: '体積 (V)', value: vol.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}³` }, { label: '表面積 (S)', value: sa.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}²`, bg: 'bg-emerald-50', border: 'border-emerald-200', textColor: 'text-emerald-700' }], steps: [`体積 V = a³ = ${a}³ = ${vol} ${u}³`, `表面積 S = 6 × a² = 6 × ${a}² = ${sa} ${u}²`] };
+        }
+
+        function drawCuboidSVG(el) { el.innerHTML = createSVG(`<rect x="25" y="55" width="80" height="50" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/><polygon points="25,55 50,30 130,30 105,55" fill="#bae6fd" stroke="#0284c7" stroke-width="2"/><polygon points="105,55 130,30 130,80 105,105" fill="#7dd3fc" stroke="#0284c7" stroke-width="2"/>`); }
+        function calcCuboid(pi, u) {
+            const w = getGeoInputValue('w'), d = getGeoInputValue('d'), h = getGeoInputValue('h');
+            const vol = w * d * h;
+            const sa = 2 * (w * d + d * h + h * w);
+            return { cards: [{ label: '体積 (V)', value: vol.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}³` }, { label: '表面積 (S)', value: sa.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}²`, bg: 'bg-emerald-50', border: 'border-emerald-200', textColor: 'text-emerald-700' }], steps: [`体積 V = w × d × h = ${w} × ${d} × ${h} = ${vol} ${u}³`, `表面積 S = 2 × (wd + dh + hw) = ${sa} ${u}²`] };
+        }
+
+        function drawCylinderSVG(el) { el.innerHTML = createSVG(`<ellipse cx="80" cy="35" rx="45" ry="15" fill="#bae6fd" stroke="#0284c7" stroke-width="2"/><path d="M35,35 L35,105 A45,15 0 0,0 125,105 L125,35 Z" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/><ellipse cx="80" cy="105" rx="45" ry="15" fill="none" stroke="#0284c7" stroke-width="2" stroke-dasharray="3"/>`); }
+        function calcCylinder(pi, u) {
+            const r = getGeoInputValue('r'), h = getGeoInputValue('h');
+            const baseArea = pi * r * r;
+            const vol = baseArea * h;
+            const sa = 2 * pi * r * h + 2 * baseArea;
+            return { cards: [{ label: '体積 (V)', value: vol.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}³` }, { label: '表面積 (S)', value: sa.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}²`, bg: 'bg-emerald-50', border: 'border-emerald-200', textColor: 'text-emerald-700' }], steps: [`底面積 = π × r² = ${baseArea.toFixed(4)}`, `体積 V = 底面積 × h = ${vol.toFixed(4)} ${u}³`, `表面積 S = 側面積 + 底面積×2 = ${sa.toFixed(4)} ${u}²`] };
+        }
+
+        function drawPrismSVG(el) { el.innerHTML = createSVG(`<polygon points="40,40 100,40 70,20" fill="#bae6fd" stroke="#0284c7" stroke-width="2"/><path d="M40,40 L40,100 L70,80 L70,20 Z" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/><path d="M100,40 L100,100 L70,80 L70,20 Z" fill="#7dd3fc" stroke="#0284c7" stroke-width="2"/>`); }
+        function calcPrism(pi, u) {
+            const b = getGeoInputValue('b'), th = getGeoInputValue('th'), h = getGeoInputValue('h');
+            const baseArea = (b * th) / 2;
+            const vol = baseArea * h;
+            return { cards: [{ label: '体積 (V)', value: vol.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}³` }], steps: [`三角底面積 = b × th ÷ 2 = ${b} × ${th} ÷ 2 = ${baseArea} ${u}²`, `体積 V = 底面積 × h = ${baseArea} × ${h} = ${vol} ${u}³`] };
+        }
+
+        function drawConeSVG(el) { el.innerHTML = createSVG(`<ellipse cx="80" cy="110" rx="45" ry="15" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/><path d="M35,110 L80,25 L125,110 Z" fill="#e0f2fe" fill-opacity="0.5" stroke="#0284c7" stroke-width="2"/><line x1="80" y1="25" x2="80" y2="110" stroke="#ef4444" stroke-width="2" stroke-dasharray="3"/>`); }
+        function calcCone(pi, u) {
+            const r = getGeoInputValue('r'), h = getGeoInputValue('h');
+            const baseArea = pi * r * r;
+            const vol = (1 / 3) * baseArea * h;
+            const slantHeight = Math.sqrt(r * r + h * h);
+            const sa = pi * r * r + pi * r * slantHeight;
+            return { cards: [{ label: '体積 (V)', value: vol.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}³` }, { label: '表面積 (S)', value: sa.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}²`, bg: 'bg-emerald-50', border: 'border-emerald-200', textColor: 'text-emerald-700' }], steps: [`体積 V = 1/3 × π × r² × h = 1/3 × ${pi} × ${r}² × ${h} = ${vol.toFixed(4)} ${u}³`, `母線 L = √(r² + h²) = ${slantHeight.toFixed(2)}`, `表面積 S = 底面積 + 側面積 = ${sa.toFixed(4)} ${u}²`] };
+        }
+
+        function drawPyramidSVG(el) { el.innerHTML = createSVG(`<polygon points="35,100 105,100 125,80 55,80" fill="none" stroke="#0284c7" stroke-width="2"/><path d="M80,25 L35,100 L105,100 Z" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/><path d="M80,25 L105,100 L125,80 Z" fill="#7dd3fc" stroke="#0284c7" stroke-width="2"/>`); }
+        function calcPyramid(pi, u) {
+            const w = getGeoInputValue('w'), d = getGeoInputValue('d'), h = getGeoInputValue('h');
+            const baseArea = w * d;
+            const vol = (1 / 3) * baseArea * h;
+            return { cards: [{ label: '体積 (V)', value: vol.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}³` }], steps: [`底面積 = w × d = ${w} × ${d} = ${baseArea} ${u}²`, `体積 V = 1/3 × 底面積 × h = 1/3 × ${baseArea} × ${h} = ${vol.toFixed(4)} ${u}³`] };
+        }
+
+        function drawSphereSVG(el) { el.innerHTML = createSVG(`<circle cx="80" cy="70" r="45" fill="#e0f2fe" stroke="#0284c7" stroke-width="3"/><ellipse cx="80" cy="70" rx="45" ry="15" fill="none" stroke="#0284c7" stroke-width="1.5" stroke-dasharray="4"/><line x1="80" y1="70" x2="125" y2="70" stroke="#ef4444" stroke-width="2"/><circle cx="80" cy="70" r="3" fill="#0369a1"/>`); }
+        function calcSphere(pi, u) {
+            const r = getGeoInputValue('r');
+            const vol = (4 / 3) * pi * Math.pow(r, 3);
+            const sa = 4 * pi * r * r;
+            return { cards: [{ label: '体積 (V)', value: vol.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}³` }, { label: '表面積 (S)', value: sa.toFixed(2).replace(/\.?0+$/, ''), unit: `${u}²`, bg: 'bg-emerald-50', border: 'border-emerald-200', textColor: 'text-emerald-700' }], steps: [`体積 V = 4/3 × π × r³ = 4/3 × ${pi} × ${r}³ = ${vol.toFixed(4)} ${u}³`, `表面積 S = 4 × π × r² = 4 × ${pi} × ${r}² = ${sa.toFixed(4)} ${u}²`] };
+        }
+
+
+        // ==========================================
+        // 4. 標準電卓ロジック
+        // ==========================================
+        let stdExpr = '';
+
+        function stdInput(val) {
+            const display = document.getElementById('std-display');
+            const history = document.getElementById('std-history');
+
+            if (val === 'C') {
+                stdExpr = '';
+                display.textContent = '0';
+                history.textContent = '';
+                return;
+            }
+
+            if (val === 'DEL') {
+                stdExpr = stdExpr.slice(0, -1);
+                display.textContent = stdExpr || '0';
+                return;
+            }
+
+            if (val === '=') {
+                try {
+                    let cleanExpr = stdExpr.replace(/×/g, '*').replace(/÷/g, '/');
+                    let result = eval(cleanExpr);
+                    
+                    history.textContent = stdExpr + ' =';
+                    display.textContent = Number.isInteger(result) ? result : parseFloat(result.toFixed(8));
+                    stdExpr = result.toString();
+                } catch (e) {
+                    display.textContent = 'エラー';
+                    stdExpr = '';
+                }
+                return;
+            }
+
+            if (['+', '-', '*', '/'].includes(val)) {
+                const opMap = { '+': '+', '-': '-', '*': '×', '/': '÷' };
+                stdExpr += opMap[val];
+            } else {
+                stdExpr += val;
+            }
+
+            display.textContent = stdExpr;
+        }
+
+        // 初期化処理
+        window.onload = function() {
+            calculateFraction();
+        };
+    </script>
+</body>
+</html>
